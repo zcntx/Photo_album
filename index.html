@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摄影集</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 加载页面 -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <p id="quote-text" class="quote-text"></p>
+        </div>
+    </div>
+
+    <header>
+        <h1>摄影集</h1>
+    </header>
+
+    <main>
+        <div id="gallery" class="gallery">
+            <!-- 照片将通过 JavaScript 动态加载 -->
+            <div class="loading">加载中...</div>
+        </div>
+    </main>
+
+    <!-- 模态框 - 放大查看 -->
+    <div id="modal" class="modal">
+        <button class="close-btn">&times;</button>
+        <div class="modal-content">
+            <img id="modal-image" src="" alt="">
+            <div class="photo-info">
+                <h3 id="photo-title">照片标题</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="label">📅 拍摄日期</span>
+                        <span id="photo-date" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">📍 地点</span>
+                        <span id="photo-location" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">📷 相机</span>
+                        <span id="photo-camera" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">🔭 镜头</span>
+                        <span id="photo-lens" class="value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">⚙️ 参数</span>
+                        <span id="photo-settings" class="value">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div id="toast" class="toast"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

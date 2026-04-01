@@ -1,0 +1,17 @@
+{
+  "name": "photo-album",
+  "version": "1.0.0",
+  "description": "一个简约现代的摄影集展示网页，支持 EXIF 数据读取、暗色模式、响应式设计和分享功能。",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "exifr": "^7.1.3",
+    "sharp": "^0.34.5"
+  }
+}

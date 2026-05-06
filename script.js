@@ -1,6 +1,26 @@
-// 摄影集展示网页 - JavaScript (重构版)
+const PHOTOS = [
+    {
+        src: 'photos/DSC00624.JPG',
+        thumbnail: 'photos/thumbnails/DSC00624.jpg',
+        title: 'DSC00624',
+        date: '2025-05-16 17:55',
+        location: '',
+        camera: 'SONY ILCE-7CM2',
+        lens: 'FE 50mm F1.4 GM',
+        settings: 'f/5 | 1/200s | ISO 100 | 50mm',
+    },
+    {
+        src: 'photos/DSC_1759.JPG',
+        thumbnail: 'photos/thumbnails/DSC_1759.jpg',
+        title: 'DSC_1759',
+        date: '2026-04-11 19:16',
+        location: '',
+        camera: 'NIKON CORPORATION NIKON Z50_2',
+        lens: 'Viltrox AF 56/1.7 Z',
+        settings: 'f/1.7 | 1/400s | ISO 5000 | 56mm',
+    },
+];
 
-// DOM 元素
 const gallery = document.getElementById('gallery');
 const modal = document.getElementById('modal');
 const modalImage = document.getElementById('modal-image');
@@ -10,37 +30,11 @@ const photoLocation = document.getElementById('photo-location');
 const photoCamera = document.getElementById('photo-camera');
 const photoLens = document.getElementById('photo-lens');
 const photoSettings = document.getElementById('photo-settings');
-const toast = document.getElementById('toast');
-const closeBtn = document.querySelector('.close-btn');
 const loadingScreen = document.getElementById('loading-screen');
-const quoteText = document.getElementById('quote-text');
 
-// 名言列表
-const quotes = [
-    "摄影是光的艺术。",
-    "一张照片胜过千言万语。",
-    "最好的相机是你随身携带的那一台。",
-    "摄影是发现生活中被忽视的美。",
-    "通过镜头，我看到了不同的世界。",
-    "每一张照片都是一个故事。",
-    "摄影是捕捉时间的艺术。",
-    "光是摄影的灵魂。",
-    "摄影是观察的艺术，是在平凡中发现不平凡。",
-    "相机是思想的工具，眼睛是灵魂的窗户。",
-    "摄影是凝固时间的魔法。",
-    "每一张照片都是对现实的重新诠释。",
-    "摄影是记录生活的方式，也是表达情感的语言。",
-    "通过摄影，我们可以看到世界的另一面。",
-    "摄影是光与影的舞蹈。"
-];
-
-// 状态
 let photos = [];
-let allPhotosData = [];
 let currentPhotoIndex = 0;
-let isLoading = false;
 
-// 缩放状态
 let zoomScale = 1;
 let isDragging = false;
 let startX, startY, translateX = 0, translateY = 0;
@@ -48,152 +42,56 @@ let initialPinchDistance = null;
 let initialScale = 1;
 let isPinching = false;
 
-// 排序状态
-let currentSort = 'time'; // 'time' 或 'name'
-
-// 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    showRandomQuote();
-    setupSortControls();
-    setupEventListeners();
+    loadingScreen.querySelector('.quote-text').textContent =
+        ["摄影是光的艺术。", "一张照片胜过千言万语。", "最好的相机是你随身携带的那一台。",
+         "摄影是发现生活中被忽视的美。", "通过镜头，我看到了不同的世界。", "每一张照片都是一个故事。",
+         "摄影是捕捉时间的艺术。", "光是摄影的灵魂。", "摄影是观察的艺术，是在平凡中发现不平凡。",
+         "相机是思想的工具，眼睛是灵魂的窗户。", "摄影是凝固时间的魔法。", "每一张照片都是对现实的重新诠释。",
+         "摄影是记录生活的方式，也是表达情感的语言。", "通过摄影，我们可以看到世界的另一面。",
+         "摄影是光与影的舞蹈。"][Math.floor(Math.random() * 15)];
+
+    document.querySelector('.close-btn').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+        if (e.key === 'ArrowLeft') navigatePhoto(-1);
+        if (e.key === 'ArrowRight') navigatePhoto(1);
+    });
+
     setupZoomFunctionality();
 
-    const loadStartTime = Date.now();
-    const MIN_DISPLAY_TIME = 500;
-
-    loadPhotos().then(() => {
-        checkUrlParams();
-    }).finally(() => {
-        // 确保加载屏至少显示 MIN_DISPLAY_TIME（防止闪烁），但不超过 2.5 秒
-        const elapsed = Date.now() - loadStartTime;
-        const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
-        setTimeout(hideLoadingScreen, remaining);
-    });
+    const t = Date.now();
+    loadPhotos();
+    openFromUrl();
+    setTimeout(() => loadingScreen.classList.add('hidden'), Math.max(0, 500 - (Date.now() - t)));
 });
 
-// 显示随机名言
-function showRandomQuote() {
-    const randomIndex = Math.floor(Math.random() * quotes.length);
-    quoteText.textContent = quotes[randomIndex];
-}
-
-// 隐藏加载屏
-function hideLoadingScreen() {
-    loadingScreen.classList.add('hidden');
-}
-
-// 设置排序控件
-function setupSortControls() {
-    const header = document.querySelector('header');
-
-    const sortContainer = document.createElement('div');
-    sortContainer.className = 'sort-controls';
-
-    const sortButton = document.createElement('button');
-    sortButton.id = 'sortButton';
-    sortButton.className = 'sort-button';
-    sortButton.textContent = '时间';
-    sortButton.title = '点击切换排序方式';
-
-    sortContainer.appendChild(sortButton);
-    header.appendChild(sortContainer);
-
-    sortButton.addEventListener('click', () => {
-        currentSort = currentSort === 'time' ? 'name' : 'time';
-        sortButton.textContent = currentSort === 'time' ? '时间' : '名字';
-        resetAndReloadPhotos();
-    });
-}
-
-// 重置并重新加载照片
-function resetAndReloadPhotos() {
-    window.scrollTo(0, 0);
-
-    gallery.style.opacity = '0';
-    gallery.style.transform = 'translateY(-10px)';
-    gallery.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-
-    setTimeout(() => {
-        photos = [];
-        allPhotosData = [];
-        gallery.innerHTML = '';
-
-        gallery.style.opacity = '0';
-        gallery.style.transform = 'translateY(10px)';
-        gallery.offsetHeight;
-
-        requestAnimationFrame(() => {
-            gallery.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-            gallery.style.opacity = '1';
-            gallery.style.transform = 'translateY(0)';
-
-            loadPhotos();
-        });
-    }, 200);
-}
-
-// 加载照片
-async function loadPhotos() {
-    if (isLoading) return;
-    isLoading = true;
-
-    try {
-        const url = `/api/photos?sort=${currentSort}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data.photos || data.photos.length === 0) {
-            gallery.innerHTML = '<div class="loading">暂无照片，请在 photos 文件夹中添加照片</div>';
-            isLoading = false;
-            return;
-        }
-
-        allPhotosData = data.photos;
-        photos = [];
-        gallery.innerHTML = '';
-
-        data.photos.forEach(photoInfo => {
-            const photoData = {
-                path: `/photos/${photoInfo.filename}`,
-                filename: photoInfo.filename,
-                title: photoInfo.filename.split('.')[0],
-                exif: photoInfo.exif || {
-                    date: '-',
-                    location: '-',
-                    camera: '-',
-                    lens: '-',
-                    settings: '-'
-                },
-                thumbnail: `/thumbnails/${photoInfo.filename}`
-            };
-
-            photos.push(photoData);
-            renderPhotoCard(photoData, photos.length - 1);
-        });
-
-        isLoading = false;
-        hideLoadingScreen();
-    } catch (error) {
-        console.error('加载照片失败:', error);
-        gallery.innerHTML = '<div class="loading">加载照片失败，请检查 photos 文件夹</div>';
-        isLoading = false;
-        hideLoadingScreen();
+function loadPhotos() {
+    if (PHOTOS.length === 0) {
+        gallery.innerHTML = '<div class="loading">暂无照片，请在 script.js 的 PHOTOS 数组中添加照片</div>';
+        return;
     }
+
+    photos = PHOTOS.map(p => ({
+        src: p.src,
+        thumbnail: p.thumbnail || p.src,
+        title: p.title || p.src.split('/').pop().split('.')[0],
+        date: p.date || null,
+        location: p.location || null,
+        camera: p.camera || null,
+        lens: p.lens || null,
+        settings: p.settings || null,
+    }));
+
+    gallery.innerHTML = '';
+    photos.forEach((photo, index) => renderPhotoCard(photo, index));
 }
 
-// 渲染单张照片卡片
 function renderPhotoCard(photo, index) {
     const card = document.createElement('div');
     card.className = 'photo-card';
-    card.dataset.index = index;
-
-    const delay = Math.min(index * 30, 500);
-    card.style.animationDelay = `${delay}ms`;
+    card.style.animationDelay = `${Math.min(index * 30, 500)}ms`;
 
     const img = document.createElement('img');
     img.src = photo.thumbnail;
@@ -202,62 +100,39 @@ function renderPhotoCard(photo, index) {
 
     const overlay = document.createElement('div');
     overlay.className = 'photo-overlay';
+    overlay.innerHTML = `<h3>${photo.title}</h3><div class="date">${photo.date || '-'}</div>`;
 
-    const h3 = document.createElement('h3');
-    h3.textContent = photo.title;
-
-    const dateDiv = document.createElement('div');
-    dateDiv.className = 'date';
-    dateDiv.textContent = photo.exif.date;
-
-    overlay.appendChild(h3);
-    overlay.appendChild(dateDiv);
-    card.appendChild(img);
-    card.appendChild(overlay);
-
+    card.append(img, overlay);
     card.addEventListener('click', () => openModal(index));
     gallery.appendChild(card);
 }
 
-// 重置缩放状态
-function resetZoom() {
-    zoomScale = 1;
-    translateX = 0;
-    translateY = 0;
-    updateImageTransform();
-}
-
-// 打开模态框
 function openModal(index) {
     currentPhotoIndex = index;
     const photo = photos[index];
 
-    modalImage.src = photo.path;
-    photoTitle.textContent = photo.filename;
-    photoDate.textContent = photo.exif.date;
-    photoLocation.textContent = photo.exif.location;
-    photoCamera.textContent = photo.exif.camera;
-    photoLens.textContent = photo.exif.lens;
+    modalImage.src = photo.src;
+    photoTitle.textContent = photo.title || photo.src.split('/').pop().split('.')[0];
+    photoDate.textContent = photo.date || '-';
+    photoLocation.textContent = photo.location || '-';
+    photoCamera.textContent = photo.camera || '-';
+    photoLens.textContent = photo.lens || '-';
+    photoSettings.textContent = Array.isArray(photo.settings) ? photo.settings.join(' | ') : (photo.settings || '-');
 
-    // settings 现在可能是数组或字符串
-    if (Array.isArray(photo.exif.settings)) {
-        photoSettings.textContent = photo.exif.settings.join(' | ');
-    } else {
-        photoSettings.textContent = photo.exif.settings;
-    }
-
-    resetZoom();
+    zoomScale = 1;
+    translateX = 0;
+    translateY = 0;
+    updateImageTransform();
 
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
     document.body.classList.add('modal-open');
 
     const url = new URL(window.location);
-    url.searchParams.set('photo', photo.filename);
+    url.searchParams.set('photo', String(index));
     window.history.pushState({}, '', url);
 }
 
-// 关闭模态框
 function closeModal() {
     modal.classList.remove('active');
     document.body.style.overflow = '';
@@ -268,104 +143,51 @@ function closeModal() {
     window.history.pushState({}, '', url);
 }
 
-// 设置事件监听器
-function setupEventListeners() {
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-        if (e.key === 'ArrowLeft') navigatePhoto(-1);
-        if (e.key === 'ArrowRight') navigatePhoto(1);
-    });
-}
-
-// 导航照片
 function navigatePhoto(direction) {
     if (!modal.classList.contains('active')) return;
-
-    currentPhotoIndex += direction;
-    if (currentPhotoIndex < 0) currentPhotoIndex = photos.length - 1;
-    if (currentPhotoIndex >= photos.length) currentPhotoIndex = 0;
-
+    currentPhotoIndex = (currentPhotoIndex + direction + photos.length) % photos.length;
     openModal(currentPhotoIndex);
 }
 
-// 显示提示
-function showToast(message) {
-    toast.textContent = message;
-    toast.classList.add('show');
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 2000);
-}
-
-// 检查 URL 参数
-function checkUrlParams() {
-    const params = new URLSearchParams(window.location.search);
-    const photoParam = params.get('photo');
-
-    if (!photoParam) return;
-
-    const index = photos.findIndex(p => p.filename === photoParam);
-    if (index !== -1) {
+function openFromUrl() {
+    const param = new URLSearchParams(window.location.search).get('photo');
+    if (param === null) return;
+    const index = parseInt(param, 10);
+    if (index >= 0 && index < photos.length) {
         openModal(index);
     } else {
-        showToast('找不到指定的照片');
+        const toast = document.getElementById('toast');
+        toast.textContent = '找不到指定的照片';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
     }
 }
 
-// 监听浏览器前进后退
 window.addEventListener('popstate', () => {
-    const params = new URLSearchParams(window.location.search);
-    const photoParam = params.get('photo');
-
-    if (photoParam) {
-        const index = photos.findIndex(p => p.filename === photoParam);
-        if (index !== -1) {
-            openModal(index);
-        } else {
-            closeModal();
-        }
-    } else {
-        closeModal();
+    const param = new URLSearchParams(window.location.search).get('photo');
+    if (param !== null) {
+        const index = parseInt(param, 10);
+        if (index >= 0 && index < photos.length) { openModal(index); return; }
     }
+    closeModal();
 });
 
-// 更新图片变换
 function updateImageTransform() {
     modalImage.style.transform = `scale(${zoomScale}) translate(${translateX / zoomScale}px, ${translateY / zoomScale}px)`;
     modalImage.style.cursor = 'grab';
 }
 
-// 计算两点距离
-function getPinchDistance(touches) {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-}
-
-// 设置滚轮放大功能
 function setupZoomFunctionality() {
-    // 触摸缩放相关常量
-    const DOUBLE_TAP_THRESHOLD = 300;
-    const DOUBLE_TAP_DISTANCE_THRESHOLD = 30;
-    let lastTouchTime = 0;
-    let lastTouchX = 0;
-    let lastTouchY = 0;
+    const TAP_THRESHOLD = 300;
+    const TAP_DIST = 30;
+    let lastTime = 0, lastX = 0, lastY = 0;
 
     modalImage.addEventListener('wheel', (e) => {
         e.preventDefault();
-
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        zoomScale = Math.min(Math.max(0.5, zoomScale + delta), 3);
-
+        zoomScale = Math.min(Math.max(0.5, zoomScale * (e.deltaY > 0 ? 0.9 : 1.1)), 6);
         updateImageTransform();
     });
 
-    // 鼠标拖拽移动
     modalImage.addEventListener('mousedown', (e) => {
         isDragging = true;
         startX = e.clientX - translateX;
@@ -373,110 +195,56 @@ function setupZoomFunctionality() {
         modalImage.style.cursor = 'grabbing';
         e.preventDefault();
     });
-
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
-
         translateX = e.clientX - startX;
         translateY = e.clientY - startY;
         updateImageTransform();
     });
-
     document.addEventListener('mouseup', () => {
-        if (isDragging) {
-            isDragging = false;
-            modalImage.style.cursor = 'grab';
-        }
+        if (isDragging) { isDragging = false; modalImage.style.cursor = 'grab'; }
     });
 
-    // 双击重置缩放
     modalImage.addEventListener('dblclick', () => {
-        resetZoom();
+        zoomScale = 1; translateX = 0; translateY = 0; updateImageTransform();
     });
 
-    // 阻止浏览器默认缩放行为（iOS Safari）
-    modalImage.addEventListener('gesturestart', (e) => {
-        e.preventDefault();
-    });
-    modalImage.addEventListener('gesturechange', (e) => {
-        e.preventDefault();
-    });
-    modalImage.addEventListener('gestureend', (e) => {
-        e.preventDefault();
-    });
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(evt =>
+        modalImage.addEventListener(evt, e => e.preventDefault()));
 
-    // 触摸事件 - 双指缩放和单指拖拽
     modalImage.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
-            isPinching = true;
-            isDragging = false;
-            initialPinchDistance = getPinchDistance(e.touches);
+            isPinching = true; isDragging = false;
+            initialPinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             initialScale = zoomScale;
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
         } else if (e.touches.length === 1) {
-            const currentTime = Date.now();
-            const touch = e.touches[0];
-            const touchX = touch.clientX;
-            const touchY = touch.clientY;
-
-            // 检测双击
-            if (currentTime - lastTouchTime < DOUBLE_TAP_THRESHOLD &&
-                Math.abs(touchX - lastTouchX) < DOUBLE_TAP_DISTANCE_THRESHOLD &&
-                Math.abs(touchY - lastTouchY) < DOUBLE_TAP_DISTANCE_THRESHOLD) {
-                if (zoomScale > 1) {
-                    zoomScale = 1;
-                    translateX = 0;
-                    translateY = 0;
-                } else {
-                    zoomScale = 2;
-                }
-                updateImageTransform();
-                e.preventDefault();
-                lastTouchTime = 0;
-                return;
+            const now = Date.now(), t = e.touches[0];
+            if (now - lastTime < TAP_THRESHOLD && Math.abs(t.clientX - lastX) < TAP_DIST && Math.abs(t.clientY - lastY) < TAP_DIST) {
+                zoomScale = zoomScale > 1 ? 1 : 2;
+                if (zoomScale === 1) { translateX = 0; translateY = 0; }
+                updateImageTransform(); e.preventDefault(); lastTime = 0; return;
             }
-
             isDragging = true;
-            startX = touchX - translateX;
-            startY = touchY - translateY;
-            lastTouchTime = currentTime;
-            lastTouchX = touchX;
-            lastTouchY = touchY;
+            startX = t.clientX - translateX; startY = t.clientY - translateY;
+            lastTime = now; lastX = t.clientX; lastY = t.clientY;
             e.preventDefault();
         }
     }, { passive: false });
 
     modalImage.addEventListener('touchmove', (e) => {
         if (isPinching && e.touches.length === 2) {
-            const currentDistance = getPinchDistance(e.touches);
-            const delta = currentDistance / initialPinchDistance;
-            zoomScale = Math.min(Math.max(0.5, initialScale * delta), 3);
-            updateImageTransform();
-            e.preventDefault();
-            e.stopPropagation();
+            zoomScale = Math.min(Math.max(0.5, initialScale * Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) / initialPinchDistance), 6);
+            updateImageTransform(); e.preventDefault(); e.stopPropagation();
         } else if (isDragging && e.touches.length === 1) {
-            translateX = e.touches[0].clientX - startX;
-            translateY = e.touches[0].clientY - startY;
-            updateImageTransform();
-            e.preventDefault();
-            e.stopPropagation();
+            translateX = e.touches[0].clientX - startX; translateY = e.touches[0].clientY - startY;
+            updateImageTransform(); e.preventDefault(); e.stopPropagation();
         }
     }, { passive: false });
 
     modalImage.addEventListener('touchend', (e) => {
-        if (e.touches.length < 2) {
-            isPinching = false;
-            initialPinchDistance = null;
-        }
-        if (e.touches.length === 0) {
-            isDragging = false;
-        }
+        if (e.touches.length < 2) { isPinching = false; initialPinchDistance = null; }
+        if (e.touches.length === 0) isDragging = false;
     });
-
-    modalImage.addEventListener('touchcancel', () => {
-        isPinching = false;
-        isDragging = false;
-        initialPinchDistance = null;
-    });
+    modalImage.addEventListener('touchcancel', () => { isPinching = false; isDragging = false; initialPinchDistance = null; });
 }

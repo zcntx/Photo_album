@@ -1,6 +1,7 @@
 /*
   照片工具 — 生成缩略图 + 读取 EXIF
-  用法: node tool.js
+  用法: node tool.js [--asc]
+  参数: --asc  按时间正序排列（旧照片在前），默认倒序（新照片在前）
   输出: photos/thumbnails/ 目录 + 可直接粘贴到 PHOTOS 数组的代码
 */
 const fs = require('fs');
@@ -11,6 +12,10 @@ const exifr = require('exifr');
 const PHOTOS_DIR = path.join(__dirname, 'photos');
 const THUMB_DIR = path.join(PHOTOS_DIR, 'thumbnails');
 const THUMB_WIDTH = 600;
+
+// 解析命令行参数
+const args = process.argv.slice(2);
+const SORT_ASC = args.includes('--asc');
 
 async function main() {
   if (!fs.existsSync(THUMB_DIR)) fs.mkdirSync(THUMB_DIR, { recursive: true });
@@ -83,6 +88,14 @@ async function main() {
     results.push(entry);
     console.log(`✓ EXIF:   ${file}`);
   }
+
+  // 按日期排序
+  results.sort((a, b) => {
+    const dateA = a.date ? new Date(a.date) : new Date(0);
+    const dateB = b.date ? new Date(b.date) : new Date(0);
+    return SORT_ASC ? dateA - dateB : dateB - dateA;
+  });
+  console.log(`\n✓ 已按拍摄时间${SORT_ASC ? '正序' : '倒序'}排列`);
 
   console.log('\n--- 复制以下内容到 script.js 的 PHOTOS 数组 ---\n');
   console.log(formatOutput(results));

@@ -9,7 +9,8 @@
 
 # 2. 安装依赖并生成缩略图 + EXIF
 npm install
-node tool.js
+node tool.js           # 默认按时间倒序（新照片在前）
+node tool.js --asc     # 按时间正序（旧照片在前）
 
 # 3. 将终端输出的 PHOTOS 数组复制到 script.js
 
